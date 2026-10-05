@@ -9,6 +9,7 @@ declare(strict_types=1);
 // Error handling & headers
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
+if (!@date_default_timezone_set((string)(getenv('APP_TIMEZONE') ?: 'UTC'))) date_default_timezone_set('UTC');
 
 function jsonResponse(mixed $data, int $status = 200): void {
     if (!empty($GLOBALS['clientApiContract'])) {
@@ -73,6 +74,14 @@ function mapClientApiResponse(mixed $value): mixed {
         $mapped[$nextKey] = $item;
     }
     return $mapped;
+}
+
+if (PHP_SAPI !== 'cli') {
+    set_exception_handler(static function (Throwable $error): void {
+        error_log('[codex-api] Unhandled ' . get_class($error) . ': ' . $error->getMessage() . ' at ' . $error->getFile() . ':' . $error->getLine());
+        if (headers_sent()) return;
+        jsonResponse(['ok' => false, 'error' => 'The server could not complete this request. Please try again.'], 500);
+    });
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
@@ -178,6 +187,24 @@ function ensureDatabaseColumn(PDO $pdo, string $table, string $column, string $d
     if (!$stmt->fetch()) {
         $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
     }
+}
+
+/** Adds a unique index on a document number column unless existing rows already contain duplicates. */
+function ensureUniqueDocumentIndex(PDO $pdo, string $table, string $column): void {
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
+        throw new InvalidArgumentException('Invalid schema identifier.');
+    }
+    $indexName = "uniq_{$table}_{$column}";
+    $isSqlite = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+    if (!$isSqlite && $pdo->query("SHOW INDEX FROM `{$table}` WHERE Key_name = " . $pdo->quote($indexName))->fetch()) return;
+    $duplicate = $pdo->query("SELECT {$column} FROM {$table} GROUP BY {$column} HAVING COUNT(*) > 1 LIMIT 1")->fetchColumn();
+    if ($duplicate !== false) {
+        error_log("[codex-api] {$table}.{$column} has duplicate values; unique index {$indexName} was not created.");
+        return;
+    }
+    $pdo->exec($isSqlite
+        ? "CREATE UNIQUE INDEX IF NOT EXISTS {$indexName} ON {$table} ({$column})"
+        : "CREATE UNIQUE INDEX {$indexName} ON `{$table}` (`{$column}`(191))");
 }
 
 function databaseObjectType(PDO $pdo, string $name): ?string {
@@ -761,6 +788,22 @@ function initSchema(PDO $pdo): void {
     ensureDatabaseColumn($pdo, 'client_payments', 'void_reason', 'TEXT NULL');
     ensureDatabaseColumn($pdo, 'client_payments', 'voided_by', 'VARCHAR(191) NULL');
     ensureDatabaseColumn($pdo, 'client_payments', 'voided_at', 'TEXT NULL');
+    ensureUniqueDocumentIndex($pdo, 'client_invoices', 'invoice_number');
+    ensureUniqueDocumentIndex($pdo, 'client_payments', 'receipt_number');
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS rate_limit_events (
+            scope VARCHAR(32) NOT NULL,
+            key_hash CHAR(64) NOT NULL,
+            created_at INTEGER NOT NULL
+        );
+    ");
+    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_rate_limit_events_lookup ON rate_limit_events (scope, key_hash, created_at)');
+    } else {
+        $rateLimitIndex = $pdo->query("SHOW INDEX FROM rate_limit_events WHERE Key_name = 'idx_rate_limit_events_lookup'")->fetch();
+        if (!$rateLimitIndex) $pdo->exec('CREATE INDEX idx_rate_limit_events_lookup ON rate_limit_events (scope, key_hash, created_at)');
+    }
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS client_invoice_followups (

@@ -13,7 +13,6 @@ import {
   Trash2,
   Copy,
   CheckCircle2,
-  SlidersHorizontal,
   LayoutGrid,
   List,
   Upload,
@@ -22,11 +21,7 @@ import {
   Image as ImageIcon,
   Check,
   X,
-  ArrowUpRight,
-  TrendingUp,
-  Award,
   Layers,
-  FileCode,
   Zap,
   Globe
 } from 'lucide-react';

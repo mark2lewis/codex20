@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ContentWorkspace from './ContentWorkspace.jsx';
 import LiveChatWorkspace from './LiveChatWorkspace.jsx';
 import EnquiriesWorkspace from './EnquiriesWorkspace.jsx';

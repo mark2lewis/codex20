@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   ROLE, LEAD_STATUSES, normalizeStage,
   getOfficeName, getTeamName, getUserName, getCountryFlag,
-  getTeamAgentCount, statusClass,
+  getTeamAgentCount,
   CreateLeadModal, AddCommentModal,
   stageColor,
-  assignableAgents, assignableAgentLabel,
+  assignableAgents,
   StatusDropdown,
 } from '../shared';
 import { SearchAutocomplete } from '../components/UserChrome.jsx';

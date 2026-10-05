@@ -729,25 +729,15 @@ export const portalDb = {
     return created;
   },
 
-  setClientPassword(clientId: string, newPassword: string): boolean {
+  /** Records an administrator password reset in the local activity log. The password itself is never kept in the browser. */
+  recordClientPasswordReset(clientId: string): boolean {
     const db = loadDatabase();
     const client = db.clients.find((c) => c.id === clientId || c.email === clientId);
-    if (client) {
-      client.password = newPassword;
-      saveDatabase(db);
-      this.logAudit(client.id, client.name, 'PROFILE_UPDATED', 'Client portal password updated by administrator');
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('cdx_client_password_updated', { detail: { clientId: client.id, password: newPassword } }));
-      }
-      return true;
-    }
-    return false;
-  },
-
-  getClientPassword(clientId: string): string {
-    const db = loadDatabase();
-    const client = db.clients.find((c) => c.id === clientId || c.email === clientId);
-    return client?.password || '';
+    if (!client) return false;
+    delete client.password;
+    saveDatabase(db);
+    this.logAudit(client.id, client.name, 'PROFILE_UPDATED', 'Client portal password updated by administrator');
+    return true;
   },
 
   getClientActivity(clientId: string): { logs: PortalAuditLog[]; stats: { pageViews: number; sessions: number; lastLogin: string } } {

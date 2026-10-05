@@ -2,15 +2,12 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   ArrowLeft,
   Plus,
-  Undo2,
-  Redo2,
   Settings,
   TrendingUp,
   Eye,
   Code,
   Laptop,
   Smartphone,
-  ExternalLink,
   Check,
   ChevronDown,
   ChevronRight,
@@ -26,13 +23,11 @@ import {
   Code2,
   Table as TableIcon,
   Image as ImageIcon,
-  Zap,
   CheckCircle2,
   AlertCircle,
   X,
   Search,
   FileText,
-  BookOpen,
   Sparkles,
   Save,
   Send,
@@ -42,22 +37,16 @@ import {
   Globe,
   Tag,
   FolderTree,
-  Calendar,
-  User,
-  MessageSquare,
-  HelpCircle,
-  Shield,
-  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { calculateReadingTime } from "@/lib/reading-time";
-import { analyzePowerWords, POWER_WORDS_DICTIONARY } from "@/lib/power-words";
+import { analyzePowerWords } from "@/lib/power-words";
 import type { BlogCategory } from "@/lib/categories";
 import {
   addAdminBlogCategory,
   getAdminBlogCategories,
 } from "@/crm/admin-app/adminApi";
-import { ImagePickerModal, type ImageSelectionMeta } from "./ImagePickerModal";
+import { ImagePickerModal } from "./ImagePickerModal";
 import type { BlogPost } from "@/types/crm";
 
 interface BlogEditorPageProps {

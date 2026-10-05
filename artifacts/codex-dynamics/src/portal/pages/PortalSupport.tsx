@@ -3,15 +3,10 @@ import {
   Headphones,
   Plus,
   Send,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
   Search,
   ArrowLeft,
-  Paperclip,
   CheckCheck,
   User,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { portalDb, type PortalClient, type ClientSupportTicket } from '../../services/portalDatabase';

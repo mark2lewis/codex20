@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck,
   Lock,
   Layers,
   CheckCircle2,
   AlertCircle,
   Copy,
   Check,
-  ExternalLink,
-  RefreshCw,
   Terminal,
   Globe,
-  User,
   ArrowRight,
 } from 'lucide-react';
 import { verifyCodexPortalToken, CODEX_PORTAL_CONNECTOR_DOCUMENTATION, type ConnectorVerificationResult } from '../../services/portalConnector';
-import { portalDb } from '../../services/portalDatabase';
 
 interface PortalConnectorDemoProps {
   onNavigate: (path: string) => void;

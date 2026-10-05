@@ -3,18 +3,16 @@ import { enterClientPortal } from '../clientImpersonation.js';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ROLE, LEAD_STATUSES, normalizeStage,
-  getOfficeName, getTeamName, getUserName, getCountryFlag, statusClass,
+  getOfficeName, getTeamName, getCountryFlag, statusClass,
   formatLeadId, EditLeadModal, CreateLeadModal, stageColor,
-  StatusDropdown,
 } from '../shared';
 import { useConfirmDialog } from '../components/ConfirmModal/ConfirmModal';
 import { SearchAutocomplete } from '../components/UserChrome.jsx';
 import { searchAdminLeads, createUserAppointment } from '../adminApi';
-import { getAdminMessages, sendAdminMessage, markAdminMessagesRead, getAdminUnreadMessageCounts, deleteAdminMessage, clearAdminChat, adminSetClientPassword, deleteLeadCommentApi, deleteLeadStatusEntryApi, getLeadNotificationsAsAdmin, fetchLeadById, postAdminPresence, getAdminMessageAttachmentUrl, getStaffCapabilities, fetchAdminMe, updateLeadApi, getClientProfilePermissionsAdmin } from '../adminApi';
+import { getAdminMessages, sendAdminMessage, markAdminMessagesRead, getAdminUnreadMessageCounts, deleteAdminMessage, clearAdminChat, adminSetClientPassword, deleteLeadCommentApi, deleteLeadStatusEntryApi, fetchLeadById, postAdminPresence, getAdminMessageAttachmentUrl, getStaffCapabilities, fetchAdminMe, getClientProfilePermissionsAdmin } from '../adminApi';
 import AdminNotificationsInbox from '../components/AdminNotificationsInbox/AdminNotificationsInbox.jsx';
 import ReactCapabilityWorkspace from '../components/ReactCapabilityWorkspace.jsx';
 import { getLeadProfilePath, getRoleScopedLeads, getRoleWorkspacePath } from '../leadProfileRouting';
-import { portalDb } from '../../../services/portalDatabase';
 import ClientAccessEditor from '../components/ClientAccessEditor.jsx';
 import ClientAccountingPanel from '../components/ClientAccountingPanel.jsx';
 import ClientProfilePermissionManager from '../components/ClientProfilePermissionManager.jsx';
@@ -822,8 +820,7 @@ function LeadProfilePage({ role, viewingUser, data, setData, updateLead, showNot
 
   useEffect(() => {
     if (!lead?.id) return;
-    const initialPwd = lead?.clientPassword || lead?.client_password || portalDb.getClientPassword(lead.id) || '';
-    setLiveClientPassword(initialPwd);
+    setLiveClientPassword(lead?.clientPassword || lead?.client_password || '');
     if (!showSecurityModal) return;
     let cancelled = false;
     fetchLeadById(lead.id)
@@ -834,7 +831,7 @@ function LeadProfilePage({ role, viewingUser, data, setData, updateLead, showNot
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [showSecurityModal, lead?.id]);
+  }, [showSecurityModal, lead?.id, lead?.clientPassword, lead?.client_password]);
 
   const handleSendClientMessage = async () => {
     const text = chatInput.trim();

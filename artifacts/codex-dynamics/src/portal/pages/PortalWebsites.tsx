@@ -6,13 +6,8 @@ import {
   ShieldCheck,
   Server,
   Compass,
-  CheckCircle2,
   AlertTriangle,
   Layers,
-  ArrowRight,
-  Info,
-  Clock,
-  Sparkles,
 } from 'lucide-react';
 import { portalDb, type PortalClient, type ClientWebsite } from '../../services/portalDatabase';
 

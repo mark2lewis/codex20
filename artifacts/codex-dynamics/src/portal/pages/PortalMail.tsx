@@ -84,6 +84,8 @@ export function PortalMail({ client, onNavigate }: PortalMailProps) {
     composeEditorRef.current.innerHTML = compose.html?.trim()
       ? sanitizeComposeHtml(compose.html)
       : escapeComposeText(compose.text);
+  // Only reload the editor when a draft is opened (version bump); re-running on every keystroke would reset the caret.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeOpen, composeEditorVersion]);
 
   const loadFolders = useCallback(async (id: string, prefer?: string) => {

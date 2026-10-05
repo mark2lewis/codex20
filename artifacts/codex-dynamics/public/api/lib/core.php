@@ -127,6 +127,48 @@ function decryptClientSecret(?string $encoded): string {
     return $plainText;
 }
 
+function clientIpAddress(): string {
+    return (string)($_SERVER['REMOTE_ADDR'] ?? '');
+}
+
+function rateLimitExceeded(PDO $pdo, string $scope, string $key, int $limit, int $windowSeconds): bool {
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limit_events WHERE scope = ? AND key_hash = ? AND created_at > ?');
+    $stmt->execute([$scope, hash('sha256', strtolower($key)), time() - $windowSeconds]);
+    return (int)$stmt->fetchColumn() >= $limit;
+}
+
+function recordRateLimitEvent(PDO $pdo, string $scope, string $key): void {
+    $pdo->prepare('INSERT INTO rate_limit_events (scope, key_hash, created_at) VALUES (?, ?, ?)')
+        ->execute([$scope, hash('sha256', strtolower($key)), time()]);
+    if (random_int(1, 50) === 1) {
+        $pdo->prepare('DELETE FROM rate_limit_events WHERE created_at < ?')->execute([time() - 86400]);
+    }
+}
+
+function clearRateLimitEvents(PDO $pdo, string $scope, string $key): void {
+    $pdo->prepare('DELETE FROM rate_limit_events WHERE scope = ? AND key_hash = ?')
+        ->execute([$scope, hash('sha256', strtolower($key))]);
+}
+
+/** Rejects a login when the account or client IP has too many recent failures. */
+function enforceLoginRateLimit(PDO $pdo, string $scope, string $email): void {
+    if (rateLimitExceeded($pdo, $scope, 'email:' . $email, 10, 900)
+        || rateLimitExceeded($pdo, $scope, 'ip:' . clientIpAddress(), 50, 900)) {
+        jsonResponse(['ok' => false, 'error' => 'Too many sign-in attempts. Wait 15 minutes and try again.'], 429);
+    }
+}
+
+function recordFailedLogin(PDO $pdo, string $scope, string $email): void {
+    recordRateLimitEvent($pdo, $scope, 'email:' . $email);
+    recordRateLimitEvent($pdo, $scope, 'ip:' . clientIpAddress());
+}
+
+function purgeExpiredSessions(PDO $pdo): void {
+    $now = date('c');
+    $pdo->prepare('DELETE FROM admin_sessions WHERE expires_at <= ?')->execute([$now]);
+    $pdo->prepare('DELETE FROM portal_sessions WHERE expires_at <= ?')->execute([$now]);
+}
+
 function requireActiveAdminStaff(PDO $pdo, ?array $session): array {
     if (!$session) jsonResponse(['ok' => false, 'error' => 'Authentication required.'], 401);
     $stmt = $pdo->prepare("SELECT id, name, role, status, office_id, team_id, capabilities FROM staff_users WHERE id = ? AND deleted_at IS NULL");
@@ -681,15 +723,46 @@ function normalizeClientPhone(string $phone): string {
     return preg_replace('/\D+/', '', trim($phone)) ?? '';
 }
 
-function nextRecurringBillingDate(string $date, string $frequency): string {
+function isValidIsoDate(string $value): bool {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) return false;
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    return $date !== false && $date->format('Y-m-d') === $value;
+}
+
+/**
+ * Advances a billing date by one cycle. The day of month comes from $anchorDate
+ * (the service start date) when $date is on that anchor day or was clamped to a
+ * month end because of it, so a service starting on the 31st returns to the 31st
+ * after a short month instead of drifting to the 28th.
+ */
+function nextRecurringBillingDate(string $date, string $frequency, ?string $anchorDate = null): string {
     $current = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
     if (!$current) throw new RuntimeException('The recurring billing date is invalid.');
     $day = (int)$current->format('j');
+    if ($anchorDate !== null && isValidIsoDate($anchorDate)) {
+        $anchorDay = (int)substr($anchorDate, 8, 2);
+        $isMonthEnd = $day === (int)$current->format('t');
+        if ($anchorDay === $day || ($isMonthEnd && $anchorDay > $day)) $day = $anchorDay;
+    }
     $target = $frequency === 'Yearly'
         ? $current->setDate((int)$current->format('Y') + 1, (int)$current->format('n'), 1)
         : $current->modify('first day of next month');
     $targetDay = min($day, (int)$target->format('t'));
     return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $targetDay)->format('Y-m-d');
+}
+
+/** Generates a document number (e.g. INV-2026-1A2B3C) that is not already used in $table.$column. */
+function generateUniqueDocumentNumber(PDO $pdo, string $table, string $column, string $prefix): string {
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
+        throw new InvalidArgumentException('Invalid document number target.');
+    }
+    $exists = $pdo->prepare("SELECT 1 FROM {$table} WHERE {$column} = ? LIMIT 1");
+    for ($attempt = 0; $attempt < 10; $attempt++) {
+        $number = $prefix . '-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
+        $exists->execute([$number]);
+        if ($exists->fetchColumn() === false) return $number;
+    }
+    throw new RuntimeException('Could not allocate a unique document number.');
 }
 
 function createRecurringInvoice(PDO $pdo, string $clientId, string $serviceId, bool $mustBeDue = false): array {
@@ -704,7 +777,7 @@ function createRecurringInvoice(PDO $pdo, string $clientId, string $serviceId, b
     if ($mustBeDue && $cycleStart > date('Y-m-d')) {
         throw new AccountingActionException('A selected service is not due yet. Refresh the due-work list and review the batch again.', 409);
     }
-    $nextDueDate = nextRecurringBillingDate($cycleStart, (string)$service['billing_frequency']);
+    $nextDueDate = nextRecurringBillingDate($cycleStart, (string)$service['billing_frequency'], (string)($service['start_date'] ?? ''));
     $cycleEnd = DateTimeImmutable::createFromFormat('!Y-m-d', $nextDueDate)->modify('-1 day')->format('Y-m-d');
     $updated = $pdo->prepare("UPDATE client_recurring_services SET next_due_date = ?, updated_at = ? WHERE id = ? AND client_id = ? AND next_due_date = ? AND status = 'Active'");
     $updated->execute([$nextDueDate, date('c'), $serviceId, $clientId, $cycleStart]);
@@ -714,7 +787,7 @@ function createRecurringInvoice(PDO $pdo, string $clientId, string $serviceId, b
 
     $amount = round((float)$service['amount'], 2);
     $invoiceId = 'inv_' . bin2hex(random_bytes(8));
-    $invoiceNumber = 'INV-' . date('Y') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+    $invoiceNumber = generateUniqueDocumentNumber($pdo, 'client_invoices', 'invoice_number', 'INV');
     $issueDate = date('Y-m-d');
     $lineItems = [[
         'description' => trim((string)$service['service_name']) . ' · ' . $cycleStart . ' to ' . $cycleEnd,

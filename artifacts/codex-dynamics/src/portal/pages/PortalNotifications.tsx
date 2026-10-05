@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, CheckCircle2, ArrowRight, Receipt, Compass, Briefcase, Headphones, FolderOpen, Shield } from 'lucide-react';
+import { Bell, ArrowRight, Receipt, Compass, Briefcase, Headphones, FolderOpen } from 'lucide-react';
 import { portalDb, type PortalClient, type ClientNotification } from '../../services/portalDatabase';
 
 interface PortalNotificationsProps {
