@@ -13,7 +13,7 @@ import {
   WhatsAppLogo,
 } from "@/components/BrandMarks";
 import { NAV_LINKS } from "@/lib/nav";
-import { CONTACT, LINKS } from "@/lib/site";
+import { LINKS } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { useContactModal } from "@/context/ContactModalContext";

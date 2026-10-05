@@ -9,7 +9,6 @@ import {
   markAllAdminNotificationsRead,
   markAllAdminMessagesRead,
   updateStaffApi,
-  getAdminPendingCounts,
 } from '../adminApi';
 import { usePlatformSettings } from '../../platformDefaults';
 

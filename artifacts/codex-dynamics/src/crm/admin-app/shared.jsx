@@ -1,5 +1,4 @@
 import React from 'react';
-import { useConfirmDialog } from './components/ConfirmModal/ConfirmModal';
 import './components/modal.css';
 import { CountrySelect, PhoneInput, isPhoneValid, parseStoredPhone, buildStoredPhone } from './components/CountryPhoneInput/CountryPhoneInput';
 import { COUNTRY_LIST, getCountryByCode, getCountryByName } from './countryData';

@@ -13,6 +13,7 @@ const apiRouter = path.join(projectRoot, 'artifacts/codex-dynamics/public/api/in
 const dbModule = path.join(projectRoot, 'artifacts/codex-dynamics/public/api/lib/db.php');
 const superAdminToken = 'api-test-super-admin-token';
 const teamLeaderToken = 'api-test-team-leader-token';
+const expiredAdminToken = 'api-test-expired-admin-token';
 const clientAlphaToken = 'api-test-client-alpha-token';
 const clientBetaToken = 'api-test-client-beta-token';
 const clientAlphaImpersonationToken = 'api-test-client-alpha-impersonation-token';
@@ -20,6 +21,7 @@ const encryptedTokenSentinel = 'test-only-encrypted-hostinger-token';
 const testSessionSecret = 'api-integration-session-secret-with-more-than-32-bytes';
 
 let testDirectory;
+let testSqlitePath;
 let apiProcess;
 let apiOrigin;
 let serverOutput = '';
@@ -76,6 +78,10 @@ function seedDatabase(sqlitePath) {
       date('c', strtotime('+1 day')), date('c')]);
     $session->execute([hash('sha256', ${JSON.stringify(teamLeaderToken)}), 'tl_test',
       date('c', strtotime('+1 day')), date('c')]);
+    $session->execute([hash('sha256', ${JSON.stringify(expiredAdminToken)}), 'sa_test',
+      date('c', strtotime('-1 day')), date('c', strtotime('-15 days'))]);
+    $staff->execute(['rl_test', 'rl@example.test', password_hash('correct-password', PASSWORD_DEFAULT),
+      'Rate Limit Staff', 'Super Admin', null, null, 'Active', '{}', date('c')]);
 
     $lead = $pdo->prepare('
       INSERT INTO leads
@@ -281,6 +287,7 @@ before(async () => {
   testDirectory = await mkdtemp(path.join(tmpdir(), 'codex-admin-api-'));
   await startHostingerMock();
   const sqlitePath = path.join(testDirectory, 'integration.sqlite');
+  testSqlitePath = sqlitePath;
   seedDatabase(sqlitePath);
   const port = await reservePort();
   apiOrigin = `http://127.0.0.1:${port}`;
@@ -870,4 +877,127 @@ test('admin login sets an HttpOnly SameSite session cookie and logout clears it'
   assert.equal(logout.response.status, 200);
   const afterLogout = await requestJson('/api/admin/audit', { headers: { Cookie: cookie } });
   assert.equal(afterLogout.response.status, 401);
+});
+
+function queryDatabase(sql) {
+  return execFileSync('php', ['-r', '$pdo = new PDO("sqlite:" . getenv("CODEX_SQLITE_PATH")); echo (string)$pdo->query(getenv("TEST_SQL"))->fetchColumn();'], {
+    env: { ...process.env, CODEX_SQLITE_PATH: testSqlitePath, TEST_SQL: sql },
+  }).toString();
+}
+
+test('staff login rejects the stored password hash as a password', async () => {
+  const storedHash = queryDatabase("SELECT password FROM staff_users WHERE id = 'sa_test'");
+  assert.match(storedHash, /^\$2y\$/);
+  const { response } = await requestJson('/api/admin/login', {
+    method: 'POST', body: { email: 'sa@example.test', password: storedHash },
+  });
+  assert.equal(response.status, 401);
+});
+
+test('staff and portal logins are throttled after repeated failures', async () => {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { response } = await requestJson('/api/admin/login', {
+      method: 'POST', body: { email: 'rl@example.test', password: `wrong-${attempt}` },
+    });
+    assert.equal(response.status, 401);
+  }
+  const blocked = await requestJson('/api/admin/login', {
+    method: 'POST', body: { email: 'rl@example.test', password: 'correct-password' },
+  });
+  assert.equal(blocked.response.status, 429);
+  assert.equal(blocked.data.ok, false);
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { response } = await requestJson('/api/portal/login', {
+      method: 'POST', body: { email: 'beta@example.test', password: `wrong-${attempt}` },
+    });
+    assert.equal(response.status, 401);
+  }
+  const portalBlocked = await requestJson('/api/portal/login', {
+    method: 'POST', body: { email: 'beta@example.test', password: 'not-used' },
+  });
+  assert.equal(portalBlocked.response.status, 429);
+});
+
+test('successful login purges expired sessions', async () => {
+  const expiredHash = 'expired-session-hash-for-purge-test';
+  queryDatabase(`INSERT INTO admin_sessions (token_hash, user_id, expires_at, created_at) VALUES ('${expiredHash}', 'sa_test', '2000-01-01T00:00:00+00:00', '2000-01-01T00:00:00+00:00')`);
+  assert.equal(queryDatabase(`SELECT COUNT(*) FROM admin_sessions WHERE token_hash = '${expiredHash}'`), '1');
+  const login = await requestJson('/api/admin/login', {
+    method: 'POST', body: { email: 'sa@example.test', password: 'not-used' },
+  });
+  assert.equal(login.response.status, 200, JSON.stringify(login.data));
+  assert.equal(queryDatabase(`SELECT COUNT(*) FROM admin_sessions WHERE token_hash = '${expiredHash}'`), '0');
+});
+
+test('public lead intake validates required fields and length limits', async () => {
+  const empty = await requestJson('/api/crm/leads', { method: 'POST', body: {} });
+  assert.equal(empty.response.status, 422);
+  const badEmail = await requestJson('/api/crm/leads', { method: 'POST', body: { name: 'Valid Name', email: 'not-an-email', message: 'Hi' } });
+  assert.equal(badEmail.response.status, 422);
+  const oversized = await requestJson('/api/crm/leads', { method: 'POST', body: { name: 'x'.repeat(200000), email: 'big@example.test', message: 'Hi' } });
+  assert.equal(oversized.response.status, 422);
+  const longMessage = await requestJson('/api/crm/leads', { method: 'POST', body: { name: 'Valid Name', email: 'long@example.test', message: 'y'.repeat(5001) } });
+  assert.equal(longMessage.response.status, 422);
+  const valid = await requestJson('/api/crm/leads', { method: 'POST', body: { name: 'Valid Lead', email: 'Valid.Lead@Example.test', message: 'Hello there' } });
+  assert.equal(valid.response.status, 200, JSON.stringify(valid.data));
+  assert.equal(valid.data.ok, true);
+});
+
+test('accounting rejects impossible dates, duplicate invoice numbers, and overpayment', async () => {
+  const route = '/api/admin/accounting/client_alpha';
+  const lineItems = [{ description: 'Website build', quantity: 1, unitPrice: 100 }];
+  const impossible = await requestJson(route, {
+    token: superAdminToken, method: 'POST',
+    body: { type: 'invoice', lineItems, issueDate: '2026-02-31', dueDate: '2026-03-15' },
+  });
+  assert.equal(impossible.response.status, 422);
+
+  const invoice = await requestJson(route, {
+    token: superAdminToken, method: 'POST',
+    body: { type: 'invoice', invoiceNumber: 'INV-TEST-0001', lineItems, issueDate: '2026-02-01', dueDate: '2026-02-15' },
+  });
+  assert.equal(invoice.response.status, 200, JSON.stringify(invoice.data));
+  const duplicate = await requestJson(route, {
+    token: superAdminToken, method: 'POST',
+    body: { type: 'invoice', invoiceNumber: 'INV-TEST-0001', lineItems, issueDate: '2026-02-01', dueDate: '2026-02-15' },
+  });
+  assert.equal(duplicate.response.status, 409);
+
+  const badPaymentDate = await requestJson(route, {
+    token: superAdminToken, method: 'POST',
+    body: { type: 'payment', invoiceId: invoice.data.invoiceId, amount: 10, paymentDate: '2026-02-30' },
+  });
+  assert.equal(badPaymentDate.response.status, 422);
+
+  const first = await requestJson(route, {
+    token: superAdminToken, method: 'POST',
+    body: { type: 'payment', invoiceId: invoice.data.invoiceId, amount: 60, paymentDate: '2026-02-05' },
+  });
+  assert.equal(first.response.status, 200, JSON.stringify(first.data));
+  const [second, third] = await Promise.all([30, 30].map((amount) => requestJson(route, {
+    token: superAdminToken, method: 'POST',
+    body: { type: 'payment', invoiceId: invoice.data.invoiceId, amount, paymentDate: '2026-02-06' },
+  })));
+  assert.deepEqual([second.response.status, third.response.status].sort(), [200, 422]);
+
+  const ledger = await requestJson(route, { token: superAdminToken });
+  const saved = ledger.data.invoices.find((row) => row.id === invoice.data.invoiceId);
+  assert.equal(Number(saved.amount_paid), 90);
+  assert.equal(Number(saved.balance_due), 10);
+  const receipts = ledger.data.payments.map((row) => row.receipt_number);
+  assert.equal(new Set(receipts).size, receipts.length);
+});
+
+test('monthly recurring billing keeps the original billing day after a short month', async () => {
+  const created = await requestJson('/api/admin/accounting/client_alpha/services', {
+    token: superAdminToken, method: 'POST',
+    body: { serviceName: 'Month-end retainer', amount: 50, billingFrequency: 'Monthly', startDate: '2026-01-31', nextDueDate: '2026-02-28' },
+  });
+  assert.equal(created.response.status, 200, JSON.stringify(created.data));
+  const invoiced = await requestJson(`/api/admin/accounting/client_alpha/services/${created.data.serviceId}/invoice`, {
+    token: superAdminToken, method: 'POST', body: {},
+  });
+  assert.equal(invoiced.response.status, 200, JSON.stringify(invoiced.data));
+  assert.equal(invoiced.data.nextDueDate, '2026-03-31');
 });

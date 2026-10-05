@@ -3,15 +3,10 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
-  Calendar,
-  User,
   ArrowRight,
-  FolderOpen,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
   ThumbsUp,
-  FileCheck,
 } from 'lucide-react';
 import { portalDb, type PortalClient, type ClientProject } from '../../services/portalDatabase';
 

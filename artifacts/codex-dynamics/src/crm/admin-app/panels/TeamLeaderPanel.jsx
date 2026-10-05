@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ROLE, LEAD_STATUSES, normalizeStage, getTeamName, getUserName, getCountryFlag, EditLeadModal, CreateAgentModal, CreateLeadModal, AddCommentModal, stageColor, assignableAgents, assignableAgentLabel, StatusDropdown } from '../shared';
+import { LEAD_STATUSES, normalizeStage, getTeamName, getUserName, getCountryFlag, EditLeadModal, CreateAgentModal, CreateLeadModal, AddCommentModal, stageColor, assignableAgents, StatusDropdown } from '../shared';
 import { SearchAutocomplete } from '../components/UserChrome.jsx';
 import { searchAdminLeads } from '../adminApi';
 import { bulkAssignLeadsApi } from '../adminApi';

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FolderOpen, Download, FileText, FileArchive, Image, FileCode, Check, Shield, UploadCloud } from 'lucide-react';
+import { FolderOpen, Download, FileText, FileArchive, Image, FileCode } from 'lucide-react';
 import { portalDb, type PortalClient } from '../../services/portalDatabase';
 
 interface PortalFilesProps {

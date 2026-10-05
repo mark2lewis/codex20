@@ -39,19 +39,37 @@ if ($apiPath === '/newsletter/subscribers' && $method === 'POST') {
 
 if ($apiPath === '/crm/leads') {
     if ($method === 'POST') {
-        $id = 'ld_' . time() . '_' . substr(bin2hex(random_bytes(3)), 0, 4);
-        $firstName = trim($input['firstName'] ?? $input['first_name'] ?? '');
-        $lastName = trim($input['lastName'] ?? $input['last_name'] ?? '');
-        $name = trim($input['name'] ?? "{$firstName} {$lastName}");
-        $email = trim(strtolower($input['email'] ?? ''));
-        $phone = trim($input['phone'] ?? '');
-        $company = trim($input['company'] ?? '');
-        $service = trim($input['service'] ?? 'General Inquiry');
-        $budget = trim($input['budget'] ?? '');
-        $timeline = trim($input['timeline'] ?? '');
-        $message = trim($input['message'] ?? '');
-        $source = trim($input['source'] ?? 'website_contact_modal');
+        $text = static function (string ...$keys) use ($input): string {
+            foreach ($keys as $key) {
+                if (isset($input[$key]) && is_scalar($input[$key])) return trim((string)$input[$key]);
+            }
+            return '';
+        };
+        $id = 'ld_' . time() . '_' . bin2hex(random_bytes(4));
+        $firstName = $text('firstName', 'first_name');
+        $lastName = $text('lastName', 'last_name');
+        $name = $text('name') ?: trim("{$firstName} {$lastName}");
+        $email = strtolower($text('email'));
+        $phone = $text('phone');
+        $company = $text('company');
+        $service = $text('service') ?: 'General Inquiry';
+        $budget = $text('budget');
+        $timeline = $text('timeline');
+        $message = $text('message');
+        $source = $text('source') ?: 'website_contact_modal';
         $now = date('c');
+
+        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            jsonResponse(['ok' => false, 'error' => 'Enter your name and a valid email address.'], 422);
+        }
+        foreach ([$firstName, $lastName, $name, $email, $phone, $company, $service, $budget, $timeline, $source] as $value) {
+            if (strlen($value) > 191) jsonResponse(['ok' => false, 'error' => 'One of the fields is too long.'], 422);
+        }
+        if (strlen($message) > 5000) jsonResponse(['ok' => false, 'error' => 'Keep your message under 5,000 characters.'], 422);
+        if (rateLimitExceeded($pdo, 'lead_intake', clientIpAddress(), 10, 600)) {
+            jsonResponse(['ok' => false, 'error' => 'Too many enquiries were sent from this connection. Please try again later.'], 429);
+        }
+        recordRateLimitEvent($pdo, 'lead_intake', clientIpAddress());
 
         $stmt = $pdo->prepare("
             INSERT INTO leads (id, first_name, last_name, name, email, phone, company, service, budget, timeline, message, source, stage, status, created_at, updated_at)
@@ -624,7 +642,7 @@ if ($isAdminLeadCollection || $isAdminLeadImport || $isAdminLeadSearch || $isAdm
             $updateFilters = ['id = ?', 'deleted_at IS NULL'];
             $updateParams[] = $leadId;
             if ($scopeSql !== '') {
-                $updateFilters[] = str_replace('l.', '', $scopeSql);
+                $updateFilters[] = preg_replace('/\bl\./', '', $scopeSql);
                 array_push($updateParams, ...$scopeParams);
             }
             $pdo->beginTransaction();
@@ -645,7 +663,7 @@ if ($isAdminLeadCollection || $isAdminLeadImport || $isAdminLeadSearch || $isAdm
             jsonResponse(['ok' => true, 'lead' => normalizeLeadRow($updatedStmt->fetch())]);
         }
         if ($method === 'DELETE') {
-            $deleteScope = $scopeSql !== '' ? ' AND ' . str_replace('l.', '', $scopeSql) : '';
+            $deleteScope = $scopeSql !== '' ? ' AND ' . preg_replace('/\bl\./', '', $scopeSql) : '';
             if (($_GET['permanent'] ?? '') === '1') {
                 $deleteStmt = $pdo->prepare('DELETE FROM leads WHERE id = ?' . $deleteScope);
                 $deleteStmt->execute($scopeSql !== '' ? array_merge([$leadId], $scopeParams) : [$leadId]);
@@ -663,7 +681,7 @@ if ($isAdminLeadCollection || $isAdminLeadImport || $isAdminLeadSearch || $isAdm
         $filters = ['id = ?', 'deleted_at IS NOT NULL'];
         $params = [$leadId];
         if ($scopeSql !== '') {
-            $filters[] = str_replace('l.', '', $scopeSql);
+            $filters[] = preg_replace('/\bl\./', '', $scopeSql);
             array_push($params, ...$scopeParams);
         }
         $stmt = $pdo->prepare('UPDATE leads SET deleted_at = NULL, updated_at = ? WHERE ' . implode(' AND ', $filters));

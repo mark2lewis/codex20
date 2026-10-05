@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Building2, Mail, Phone, MapPin, Lock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Building2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { portalDb, type PortalClient } from '../../services/portalDatabase';
 
 interface PortalProfileProps {

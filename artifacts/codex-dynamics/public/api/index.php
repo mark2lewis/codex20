@@ -125,6 +125,7 @@ require __DIR__ . '/routes/10-admin-teams-management.php';
 require __DIR__ . '/routes/11-admin-staff.php';
 require __DIR__ . '/routes/12-admin-lead-assignment.php';
 require __DIR__ . '/routes/13-authentication-staff-login.php';
+require __DIR__ . '/routes/17-admin-accounting.php';
 require __DIR__ . '/routes/14-authentication-client-portal-login.php';
 require __DIR__ . '/routes/15-client-portal-complete-dashboard-data.php';
 require __DIR__ . '/routes/16-client-portal-support-tickets.php';

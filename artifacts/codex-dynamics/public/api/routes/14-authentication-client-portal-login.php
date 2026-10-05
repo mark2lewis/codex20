@@ -7,8 +7,9 @@ declare(strict_types=1);
 // 14. AUTHENTICATION: CLIENT PORTAL LOGIN
 // -----------------------------------------------------------------------------
 if ($apiPath === '/portal/login' && $method === 'POST') {
-    $email = strtolower(trim($input['email'] ?? ''));
-    $password = $input['password'] ?? '';
+    $email = strtolower(trim(is_string($input['email'] ?? null) ? $input['email'] : ''));
+    $password = is_string($input['password'] ?? null) ? $input['password'] : '';
+    enforceLoginRateLimit($pdo, 'portal_login', $email);
 
     $stmt = $pdo->prepare("SELECT c.*, a.password_hash, a.status AS portal_status, a.portal_enabled, a.tier, a.last_login_at
         FROM clients c
@@ -22,14 +23,18 @@ if ($apiPath === '/portal/login' && $method === 'POST') {
     $client = $matches[0] ?? null;
 
     if (!$client) {
+        recordFailedLogin($pdo, 'portal_login', $email);
         jsonResponse(['ok' => false, 'error' => 'No client account found with this email address.'], 404);
     }
     if (empty($client['portal_enabled']) || $client['portal_status'] !== 'Active') {
         jsonResponse(['ok' => false, 'error' => 'This client portal account is currently disabled.'], 403);
     }
     if ($password === '' || empty($client['password_hash']) || !password_verify($password, (string)$client['password_hash'])) {
+        recordFailedLogin($pdo, 'portal_login', $email);
         jsonResponse(['ok' => false, 'error' => 'Incorrect password. Please try again.'], 401);
     }
+    clearRateLimitEvents($pdo, 'portal_login', 'email:' . $email);
+    purgeExpiredSessions($pdo);
     if (password_needs_rehash((string)$client['password_hash'], PASSWORD_DEFAULT)) {
         $rehash = password_hash($password, PASSWORD_DEFAULT);
         if ($rehash === false) jsonResponse(['ok' => false, 'error' => 'Could not securely update the password hash.'], 500);

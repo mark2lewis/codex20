@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Star, Quote, CheckCircle2 } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import type { Review } from "@/types/crm";

@@ -1,13 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  Inbox,
   Download,
   Search,
-  X,
   Plus,
   Trash2,
   Copy,
-  ExternalLink,
   MessageSquare,
 } from 'lucide-react';
 import { StatusDropdown } from '../shared';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Server, ShieldCheck, CheckCircle2, AlertTriangle, RefreshCw, Cpu, HardDrive, Wifi, ExternalLink } from 'lucide-react';
+import { Server, CheckCircle2, Cpu, HardDrive, Wifi } from 'lucide-react';
 import { portalDb, type PortalClient } from '../../services/portalDatabase';
 
 interface PortalHostingProps {

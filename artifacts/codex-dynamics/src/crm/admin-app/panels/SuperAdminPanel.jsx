@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ROLE, LEAD_STATUSES, normalizeStage, NotificationContext, DataContext,
   getOfficeName, getTeamName, getUserName, getCountryFlag, statusClass,
-  EditLeadModal, makeLoginLink,
+  EditLeadModal,
   EditOfficeModal, EditTeamModal, EditAgentModal,
   StatusDropdown,
 } from '../shared';
@@ -22,7 +22,6 @@ import AuditLog from '../components/AuditLog/AuditLog.jsx';
 import Notifications from '../components/Notifications/Notifications.jsx';
 import NotificationToast from '../components/NotificationToast/NotificationToast.jsx';
 import AccountingWorkspace from '../components/AccountingWorkspace.jsx';
-import SecurityRequests from '../components/SecurityRequests/SecurityRequests.jsx';
 import Sessions from '../components/Sessions/Sessions.jsx';
 import AgentAccess from '../components/AgentAccess.jsx';
 import HealthIndicator from '../components/HealthIndicator/HealthIndicator.jsx';
@@ -30,9 +29,7 @@ import { SearchAutocomplete } from '../components/UserChrome.jsx';
 import { CountrySelect, PhoneInput, buildStoredPhone } from '../components/CountryPhoneInput/CountryPhoneInput';
 import { COUNTRY_LIST } from '../countryData';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faBell, faBuilding, faCog, faPalette, faHistory, faIdCard, faTachometerAlt, faTrash, faUser, faUserPlus, faUsers,
-  faArrowDown, faArrowUp, faKey, faGlobe, faComments, faBriefcase, faFileInvoiceDollar,
+import { faCog, faPalette, faHistory, faIdCard, faTachometerAlt, faTrash, faUsers, faKey, faGlobe, faComments, faBriefcase, faFileInvoiceDollar,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   getAdminToken, getUserProfileHistoryApi,
@@ -40,10 +37,8 @@ import {
   listAdminClients, getAdminClientProjects, createAdminClientProject, updateAdminClientProject, archiveAdminClientProject,
   getAdminClientIdentityReviews, resolveAdminClientIdentityReview,
   createStaffApi, updateStaffApi, resetLeadStatusApi, clearLeadCommentsApi,
-  updateLeadApi, deleteLeadApi, restoreLeadApi,
-  getLeadNotificationsAsAdmin, getAdminPendingCounts,
+  updateLeadApi, deleteLeadApi, restoreLeadApi, getAdminPendingCounts,
   restoreOfficeApi, restoreTeamApi, restoreStaffApi, deleteOfficePermanent, deleteTeamPermanent,
-  blockStaffApi, unblockStaffApi,
   listRecentAuditLog,
   deleteProfileHistoryEntryApi, clearProfileHistoryApi,
   importLeadsApi, bulkUpdateLeadStatusApi, cleanupBinApi, purgeBinLeads,

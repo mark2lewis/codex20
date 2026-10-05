@@ -4,19 +4,14 @@ import {
   Briefcase,
   Receipt,
   Server,
-  Compass,
-  Headphones,
   ExternalLink,
   Lock,
   ArrowRight,
   AlertTriangle,
   Clock,
   CheckCircle2,
-  Calendar,
-  Sparkles,
   ShieldCheck,
   ChevronRight,
-  CreditCard,
 } from 'lucide-react';
 import { portalDb, type PortalClient } from '../../services/portalDatabase';
 

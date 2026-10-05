@@ -5,6 +5,9 @@ Codex Dynamics is an agency website with a CRM and a client portal, backed by PH
 ## Run & Operate
 
 - On a fresh workspace, install the locked dependencies with `npm ci` from the repository root.
+- The PHP API needs PHP 8.2+ with the `pdo_sqlite`, `mbstring`, `openssl`, and `curl` extensions; without `curl` the Hostinger mail tests in `npm run test:api` fail with 502.
+- The API runs in UTC by default (`APP_TIMEZONE` overrides it); invoice due/overdue and recurring billing dates are calculated in that timezone.
+- `/api/admin/login` and `/api/portal/login` lock an email for 15 minutes after 10 failed attempts (50 per IP); the public enquiry form (`POST /api/crm/leads`) accepts 10 submissions per IP per 10 minutes.
 - The `artifacts/codex-dynamics: web` workflow starts the React/Vite frontend.
 - The `artifacts/api-server: API Server` workflow runs the PHP API router.
 - Start both workflows for a complete preview; the API is served under `/api`.
@@ -18,6 +21,7 @@ Codex Dynamics is an agency website with a CRM and a client portal, backed by PH
 - Accounting records are persistent invoices, payments, and receipt numbers. Invoice line items can be categorized as project creation, hosting, domain, maintenance, or other; drafts are hidden from the client portal.
 - The Super Admin Accounting workspace and the Accounting section in each client profile use the same invoice, payment, and recurring-service records. The workspace summarizes monthly activity, open and overdue balances, and scheduled monthly-equivalent service amounts; all totals stay grouped by currency.
 - Frontend typecheck: `npm run typecheck`; lint: `npm run lint`; PHP integration tests: `npm run test:api`
+- CI (`.github/workflows/ci.yml`) runs typecheck, lint, PHP syntax checks, the API tests, and the build on every pull request.
 - Local dev outside Replit: run `npm run dev --workspace=@workspace/api-server` (PHP on :8080) and `npm run dev`; Vite proxies `/api` to `API_PROXY_TARGET` (default `http://127.0.0.1:8080`).
 - Hostinger package: `npm run build && npm run package:hostinger` writes `artifacts/codex-dynamics/dist/hostinger-public_html.zip` (frontend build + `public/api`, excluding `data/` and `config.php`). The frontend builds to `artifacts/codex-dynamics/dist/public`.
 - PHP syntax checks: `php -l artifacts/codex-dynamics/public/api/index.php` and `php -l artifacts/codex-dynamics/public/api/db.php`

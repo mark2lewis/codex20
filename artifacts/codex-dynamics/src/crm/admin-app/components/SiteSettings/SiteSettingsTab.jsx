@@ -15,7 +15,6 @@ import {
   Layout,
   Search,
   Shield,
-  Mail,
   Save,
   RotateCcw,
   Check,
@@ -39,14 +38,10 @@ import {
   X,
   Sliders,
   Sparkles,
-  MapPin,
   Monitor,
   Tablet,
   Smartphone,
   Maximize2,
-  Minimize2,
-  ZoomIn,
-  ZoomOut,
   Layers,
   Compass,
   Sun,
@@ -1451,12 +1446,15 @@ export default function SiteSettingsTab({ showNotification = () => {}, initialSu
     return { ratio, ...getWcagLevel(ratio) };
   }, [siteConfig?.backgroundColor, siteConfig?.primaryColor]);
 
+  const handleSaveAllRef = useRef(handleSaveAll);
+  handleSaveAllRef.current = handleSaveAll;
+
   // Global Keyboard Shortcuts (⌘S / Ctrl+S to save, '/' to search)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        handleSaveAll();
+        handleSaveAllRef.current();
       }
       if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
         e.preventDefault();
@@ -1469,7 +1467,7 @@ export default function SiteSettingsTab({ showNotification = () => {}, initialSu
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSaveAll]);
+  }, []);
 
   return (
     <div className="crm-site-settings-root">

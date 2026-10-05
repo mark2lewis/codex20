@@ -92,7 +92,7 @@ export default function LeadProfileModal({
     setReassignTeamLeaderId(lead.assignedToTeamLeader || lead.assigned_team_leader_id || '');
     setReassignAgentId(lead.assignedToAgent || lead.assigned_agent_id || '');
 
-    const currentPwd = portalDb.getClientPassword(lead.id) || lead.clientPassword || lead.client_password || '';
+    const currentPwd = lead.clientPassword || lead.client_password || '';
     setLiveClientPassword(currentPwd);
     setClientActivityData(portalDb.getClientActivity(lead.id));
     setChatMessages([]);
@@ -128,23 +128,16 @@ export default function LeadProfileModal({
     }
   }, [lead]);
 
-  // Real-time synchronization for Support Chat and Passwords
+  // Real-time synchronization for Support Chat
   useEffect(() => {
     if (!lead?.id) return;
     const handleChatUpdate = () => {
       setChatMessages(portalDb.getDirectChatMessages(lead.id));
       setClientActivityData(portalDb.getClientActivity(lead.id));
     };
-    const handlePwdUpdate = (e) => {
-      if (e.detail?.clientId === lead.id) {
-        setLiveClientPassword(e.detail.password);
-      }
-    };
     window.addEventListener('cdx_chat_message_received', handleChatUpdate);
-    window.addEventListener('cdx_client_password_updated', handlePwdUpdate);
     return () => {
       window.removeEventListener('cdx_chat_message_received', handleChatUpdate);
-      window.removeEventListener('cdx_client_password_updated', handlePwdUpdate);
     };
   }, [lead?.id]);
 

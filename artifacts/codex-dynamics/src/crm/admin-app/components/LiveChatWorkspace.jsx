@@ -91,12 +91,15 @@ export default function LiveChatWorkspace({ showNotification = () => {} }) {
     }
   };
 
+  const reloadThreadsRef = useRef(reloadThreads);
+  reloadThreadsRef.current = reloadThreads;
+
   useEffect(() => {
     let active = true;
     const refresh = () => {
-      if (active) void reloadThreads({ quiet: isLoadingThreads });
+      if (active) void reloadThreadsRef.current({ quiet: true });
     };
-    void reloadThreads();
+    void reloadThreadsRef.current();
     const timer = window.setInterval(refresh, 15000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);

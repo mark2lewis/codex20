@@ -1,18 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Receipt,
-  CreditCard,
   CheckCircle2,
-  Clock,
-  AlertCircle,
-  Download,
   Printer,
   X,
-  FileText,
-  DollarSign,
-  ArrowUpRight,
-  ShieldCheck,
-  ChevronRight,
 } from 'lucide-react';
 import { portalDb, type PortalClient, type ClientInvoice, type ClientPayment } from '../../services/portalDatabase';
 

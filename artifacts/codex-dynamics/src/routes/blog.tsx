@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { Blog, type BlogPostData } from "@/components/Blog";
 import { SEO } from "@/components/SEO";
 import { SiteCanvas } from "@/components/SiteCanvas";
-import type { BlogPost } from "@/types/crm";
 
 interface BlogSearch {
   slug?: string;

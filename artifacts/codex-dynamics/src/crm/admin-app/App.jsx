@@ -46,14 +46,13 @@ import {
   normalizeLeadAssignment,
 } from './shared';
 
-import SuperAdminPanel from './panels/SuperAdminPanel.jsx';
-import OfficeManagerPanel from './panels/OfficeManagerPanel.jsx';
-import TeamLeaderPanel from './panels/TeamLeaderPanel.jsx';
+const SuperAdminPanel = React.lazy(() => import('./panels/SuperAdminPanel.jsx'));
+const OfficeManagerPanel = React.lazy(() => import('./panels/OfficeManagerPanel.jsx'));
+const TeamLeaderPanel = React.lazy(() => import('./panels/TeamLeaderPanel.jsx'));
 import AgentPanel, { LeadProfilePage } from './panels/AgentPanel.jsx';
 import StaffProfilePage from './components/StaffProfilePage.jsx';
 import { UserChrome } from './components/UserChrome.jsx';
-import ReactCapabilityWorkspace from './components/ReactCapabilityWorkspace.jsx';
-import { Crown, Building2, Users, UserCheck, Briefcase, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Crown, Building2, Users, UserCheck, Briefcase, ArrowRight } from 'lucide-react';
 import { applyCrmThemeToDom, loadCrmThemeFromServer } from './components/CrmSettings/crmThemeState';
 
 const CRM_ICON_TOKENS = {
@@ -277,9 +276,11 @@ function RolePage({ data, dataLoading, role, setLeadAssignment, assignOfficeMana
               path=""
               element={(
                 <>
-                  {role === ROLE.SUPER_ADMIN && <SuperAdminPanel data={data} currentUser={user} setData={setData} assignOfficeManager={assignOfficeManager} createOfficeWithManager={createOfficeWithManager} createTeamLeader={createTeamLeader} createStandaloneTeamLeader={createStandaloneTeamLeader} createAgent={createAgent} toggleStaffBlocked={toggleStaffBlocked} setLeadAssignment={setLeadAssignment} setUserLoginState={setUserLoginState} createLead={createLead} showNotification={showNotification} />}
-                  {role === ROLE.OFFICE_MANAGER && <OfficeManagerPanel data={data} setData={setData} currentUser={user} assignTeamLeader={assignTeamLeader} createTeamLeader={createTeamLeader} createAgent={createAgent} toggleStaffBlocked={toggleStaffBlocked} setLeadAssignment={setLeadAssignment} updateLead={updateLead} createLead={createLead} setUserLoginState={setUserLoginState} showNotification={showNotification} />}
-                  {role === ROLE.TEAM_LEADER && <TeamLeaderPanel data={data} setData={setData} currentUser={user} createAgent={createAgent} canCreateAgent={canCreateAgent} toggleStaffBlocked={toggleStaffBlocked} setLeadAssignment={setLeadAssignment} updateLead={updateLead} createLead={createLead} setUserLoginState={setUserLoginState} showNotification={showNotification} />}
+                  <React.Suspense fallback={<div style={{ padding: 30 }}>Loading workspace…</div>}>
+                    {role === ROLE.SUPER_ADMIN && <SuperAdminPanel data={data} currentUser={user} setData={setData} assignOfficeManager={assignOfficeManager} createOfficeWithManager={createOfficeWithManager} createTeamLeader={createTeamLeader} createStandaloneTeamLeader={createStandaloneTeamLeader} createAgent={createAgent} toggleStaffBlocked={toggleStaffBlocked} setLeadAssignment={setLeadAssignment} setUserLoginState={setUserLoginState} createLead={createLead} showNotification={showNotification} />}
+                    {role === ROLE.OFFICE_MANAGER && <OfficeManagerPanel data={data} setData={setData} currentUser={user} assignTeamLeader={assignTeamLeader} createTeamLeader={createTeamLeader} createAgent={createAgent} toggleStaffBlocked={toggleStaffBlocked} setLeadAssignment={setLeadAssignment} updateLead={updateLead} createLead={createLead} setUserLoginState={setUserLoginState} showNotification={showNotification} />}
+                    {role === ROLE.TEAM_LEADER && <TeamLeaderPanel data={data} setData={setData} currentUser={user} createAgent={createAgent} canCreateAgent={canCreateAgent} toggleStaffBlocked={toggleStaffBlocked} setLeadAssignment={setLeadAssignment} updateLead={updateLead} createLead={createLead} setUserLoginState={setUserLoginState} showNotification={showNotification} />}
+                  </React.Suspense>
                   {role === ROLE.AGENT && <AgentPanel data={data} currentUser={user} setData={setData} setUserLoginState={setUserLoginState} createLead={createLead} showNotification={showNotification} />}
                 </>
               )}
@@ -637,17 +638,13 @@ function App() {
     window.addEventListener('storage', handleInquirySync);
     window.addEventListener('codex_inquiry_added', handleInquirySync);
 
-    window.onunhandledrejection = (event) => {
-      console.error('[App] Unhandled promise rejection:', event.reason);
-      return true;
-    };
     return () => {
       clearInterval(leadRefreshId);
       clearInterval(staffHeartbeatId);
       window.removeEventListener('storage', handleInquirySync);
       window.removeEventListener('codex_inquiry_added', handleInquirySync);
     };
-  }, []);
+  }, [loadBackendAdminData]);
 
   if (!appLoaded) {
     return (

@@ -1352,7 +1352,7 @@ export async function adminSetClientPassword(userId, newPassword) {
     method: 'POST',
     body: { new_password: newPassword, password: newPassword, client_password: newPassword },
   });
-  portalDb.setClientPassword(userId, newPassword);
+  portalDb.recordClientPasswordReset(userId);
   return result;
 }
 
